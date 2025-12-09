@@ -58,16 +58,55 @@ class Ridge_Regression:
 
 
 
+# class Logistic_Regression(nn.Module):
+#     def __init__(self, input_dim, output_dim):
+#         super(Logistic_Regression, self).__init__()
+#
+#         ########## YOUR CODE HERE ##########
+#
+#         # define a linear operation.
+#
+#         ####################################
+#         pass
+#
+#     def forward(self, x):
+#         """
+#         Computes the output of the linear operator.
+#         :param x: The input to the linear operator.
+#         :return: The transformed input.
+#         """
+#         # compute the output of the linear operator
+#
+#         ########## YOUR CODE HERE ##########
+#
+#         # return the transformed input.
+#         # first perform the linear operation
+#         # should be a single line of code.
+#
+#         ####################################
+#
+#         pass
+#
+#     def predict(self, x):
+#         """
+#         THIS FUNCTION IS NOT NEEDED FOR PYTORCH. JUST FOR OUR VISUALIZATION
+#         """
+#         x = torch.from_numpy(x).float().to(self.linear.weight.data.device)
+#         x = self.forward(x)
+#         x = nn.functional.softmax(x, dim=1)
+#         x = x.detach().cpu().numpy()
+#         x = np.argmax(x, axis=1)
+#         return x
+
 class Logistic_Regression(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(Logistic_Regression, self).__init__()
 
         ########## YOUR CODE HERE ##########
-
         # define a linear operation.
-
+        self.linear = nn.Linear(input_dim, output_dim)
         ####################################
-        pass
+
 
     def forward(self, x):
         """
@@ -75,17 +114,13 @@ class Logistic_Regression(nn.Module):
         :param x: The input to the linear operator.
         :return: The transformed input.
         """
-        # compute the output of the linear operator
 
         ########## YOUR CODE HERE ##########
-
         # return the transformed input.
         # first perform the linear operation
-        # should be a single line of code.
-
+        return self.linear(x)
         ####################################
 
-        pass
 
     def predict(self, x):
         """

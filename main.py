@@ -1,8 +1,13 @@
 # main.py
+import torch
+
 
 import numpy as np
 from helpers import read_data_demo
 from ridge_regression import run_ridge_regression
+from manual_gradient_descent import gradient_descent
+from logistic_regression import run_binary_logistic_regression
+
 
 
 if __name__ == "__main__":
@@ -45,6 +50,8 @@ if __name__ == "__main__":
     X_test_multiclass = test_multiclass[:, :2]
     y_test_multiclass = test_multiclass[:, 2]
 
+
+
     # -------------------------------------------------------------
     # Run Part 3 (Ridge Regression)
     #
@@ -52,8 +59,27 @@ if __name__ == "__main__":
     #     Ridge regression will reshape the data internally.
     #     main.py should NOT worry about shapes or transposes.
     # -------------------------------------------------------------
-    run_ridge_regression(
+    # run_ridge_regression(
+    #     X_train, y_train,
+    #     X_validation,   y_validation,
+    #     X_test,  y_test
+    # )
+
+    #gradient_descent(1000, 0.1)
+
+    # -------------------------------------------------------------
+    # Run Part 6.3 (Binary Logistic Regression)
+    # -------------------------------------------------------------
+    run_binary_logistic_regression(
         X_train, y_train,
-        X_validation,   y_validation,
-        X_test,  y_test
+        X_validation, y_validation,
+        X_test, y_test
     )
+
+
+
+
+
+
+
+
