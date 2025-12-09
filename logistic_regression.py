@@ -3,6 +3,7 @@ import torch
 from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
 
+from helpers import plot_decision_boundaries
 from models import Logistic_Regression
 
 def get_device() -> torch.device:
@@ -36,14 +37,23 @@ def run_binary_logistic_regression(
     # -------------------------------------------------------------
     # Convert NumPy arrays to PyTorch tensors
     # -------------------------------------------------------------
-    training_features = torch.tensor(X_train, dtype=torch.float32).to(device)
-    training_labels = torch.tensor(y_train, dtype=torch.long).to(device)
+    # training_features = torch.tensor(X_train, dtype=torch.float32).to(device)
+    # training_labels = torch.tensor(y_train, dtype=torch.long).to(device)
+    #
+    # validation_features = torch.tensor(X_validation, dtype=torch.float32).to(device)
+    # validation_labels = torch.tensor(y_validation, dtype=torch.long).to(device)
+    #
+    # test_features = torch.tensor(X_test, dtype=torch.float32).to(device)
+    # test_labels = torch.tensor(y_test, dtype=torch.long).to(device)
 
-    validation_features = torch.tensor(X_validation, dtype=torch.float32).to(device)
-    validation_labels = torch.tensor(y_validation, dtype=torch.long).to(device)
+    training_features = torch.tensor(X_train, dtype=torch.float32)
+    training_labels = torch.tensor(y_train, dtype=torch.long)
 
-    test_features = torch.tensor(X_test, dtype=torch.float32).to(device)
-    test_labels = torch.tensor(y_test, dtype=torch.long).to(device)
+    validation_features = torch.tensor(X_validation, dtype=torch.float32)
+    validation_labels = torch.tensor(y_validation, dtype=torch.long)
+
+    test_features = torch.tensor(X_test, dtype=torch.float32)
+    test_labels = torch.tensor(y_test, dtype=torch.long)
 
     # -------------------------------------------------------------
     # Create TensorDatasets
@@ -73,7 +83,7 @@ def run_binary_logistic_regression(
         print(f"Training logistic regression with learning rate = {lr}")
         print("=" * 60)
 
-        model = Logistic_Regression(input_dim=2, output_dim=2).to(device)
+        model = Logistic_Regression(input_dim=2, output_dim=2)
 
 
         result = train_single_model(
@@ -105,7 +115,17 @@ def run_binary_logistic_regression(
     print(f"  Corresponding test accuracy: {best_test:.4f}")
     print("-" * 60)
 
-    # TODO: visualization
+    # After selecting best_result
+
+    # ---------------------------------------
+    # Visualization 1: Decision boundaries
+    # ---------------------------------------
+    visualize_best_model_predictions(best_result, X_test, y_test)
+
+    # ---------------------------------------
+    # Visualization 2: Loss curves
+    # ---------------------------------------
+    plot_loss_curves(best_result)
 
 
 def compute_accuracy(model: nn.Module, data_loader: DataLoader) -> float:
@@ -312,6 +332,51 @@ def print_epoch_metrics(
           f"Accuracy: {metrics['test_accuracy']:.4f}")
     print("-" * 60)
 
+def visualize_best_model_predictions(best_result, X_test: np.ndarray, y_test: np.ndarray) -> None:
+    """
+    Visualizes the decision boundaries and test predictions
+    for the best logistic regression model.
+    """
+
+    best_model = best_result["model"]
+
+    # Convert test points back to CPU numpy if needed
+    # (plotting only works with CPU, numpy arrays)
+    if isinstance(X_test, torch.Tensor):
+        X_test = X_test.cpu().numpy()
+    if isinstance(y_test, torch.Tensor):
+        y_test = y_test.cpu().numpy()
+
+    print("Visualizing decision boundaries for the best model...")
+    plot_decision_boundaries(best_model, X_test, y_test, title="Best Logistic Regression Model – Test Predictions")
+
+
+import matplotlib.pyplot as plt
+
+
+def plot_loss_curves(best_result: dict) -> None:
+    """
+    Plots training, validation, and test losses over epochs
+    for the chosen logistic regression model.
+    """
+
+    training_losses = best_result["training_losses"]
+    validation_losses = best_result["validation_losses"]
+    test_losses = best_result["test_losses"]
+
+    epochs = range(1, len(training_losses) + 1)
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(epochs, training_losses, label="Training Loss")
+    plt.plot(epochs, validation_losses, label="Validation Loss")
+    plt.plot(epochs, test_losses, label="Test Loss")
+
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title("Loss Curves for Best Logistic Regression Model")
+    plt.legend()
+    plt.grid(True)
+    plt.show()
 
 
 
