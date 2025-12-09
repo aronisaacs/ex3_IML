@@ -3,10 +3,12 @@ import torch
 from torch import nn
 
 
+
 class Ridge_Regression:
 
     def __init__(self, lambd):
         self.lambd = lambd
+        self.W = None
 
     def fit(self, X, Y):
 
@@ -18,13 +20,21 @@ class Ridge_Regression:
 
         Y = 2 * (Y - 0.5) # transform the labels to -1 and 1, instead of 0 and 1.
 
-        ########## YOUR CODE HERE ##########
+        number_of_training_samples: int = X.shape[1]
+        number_of_features: int = X.shape[0]
 
-        # compute the ridge regression weights using the formula from class / exercise.
-        # you may not use np.linalg.solve, but you may use np.linalg.inv
+        identity_matrix: np.ndarray = np.eye(number_of_features)
 
-        ####################################
-        pass
+        # Compute (X X^T / N + lambda I)
+        left_matrix: np.ndarray = (X @ X.T) / number_of_training_samples
+        left_matrix = left_matrix + self.lambd * identity_matrix
+
+        # Compute (X Y^T / N)
+        right_vector: np.ndarray = (X @ Y.T) / number_of_training_samples
+
+        # Closed-form ridge solution
+        self.W = np.linalg.inv(left_matrix) @ right_vector
+
 
     def predict(self, X):
         """
@@ -32,19 +42,19 @@ class Ridge_Regression:
         :param X: The data to predict. 
         :return: The predicted output. 
         """
-        preds = None
-        ########## YOUR CODE HERE ##########
+        # Compute the raw linear scores: shape (1, number_of_samples)
+        raw_scores: np.ndarray = self.W.T @ X
 
-        # compute the predicted output of the model.
-        # name your predicitons array preds.
+        # Convert raw scores into {-1, +1} decisions
+        predictions: np.ndarray = np.sign(raw_scores)
 
-        ####################################
+        # Flatten to shape (number_of_samples,)
+        predictions = predictions.flatten()
 
-        # transform the labels to 0s and 1s, instead of -1s and 1s.
-        # You may remove this line if your code already outputs 0s and 1s.
-        preds = (preds + 1) / 2
+        # Convert from {-1, +1} into {0, 1}
+        predictions = (predictions + 1) / 2
 
-        return preds
+        return predictions
 
 
 
