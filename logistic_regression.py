@@ -1,50 +1,23 @@
+from typing import Optional, Callable
+
 import numpy as np
 import torch
 from torch import nn
 from torch.utils.data import TensorDataset, DataLoader
+from torch.optim.lr_scheduler import LRScheduler
 
 from helpers import plot_decision_boundaries
 from models import Logistic_Regression
 
-def get_device() -> torch.device:
-    """
-    Returns the best available device: CUDA → MPS → CPU.
-    """
-    if torch.cuda.is_available():
-        return torch.device("cuda")
-    if torch.backends.mps.is_available():
-        return torch.device("mps")
-    return torch.device("cpu")
-
-
-
-def run_binary_logistic_regression(
+def build_dataloaders(
     X_train: np.ndarray,
     y_train: np.ndarray,
     X_validation: np.ndarray,
     y_validation: np.ndarray,
     X_test: np.ndarray,
-    y_test: np.ndarray
-) -> None:
-
-
-    # -------------------------------------------------------------
-    # Select device (CUDA → MPS → CPU)
-    # -------------------------------------------------------------
-    device = get_device()
-    print(f"Using device: {device}")
-
-    # -------------------------------------------------------------
-    # Convert NumPy arrays to PyTorch tensors
-    # -------------------------------------------------------------
-    # training_features = torch.tensor(X_train, dtype=torch.float32).to(device)
-    # training_labels = torch.tensor(y_train, dtype=torch.long).to(device)
-    #
-    # validation_features = torch.tensor(X_validation, dtype=torch.float32).to(device)
-    # validation_labels = torch.tensor(y_validation, dtype=torch.long).to(device)
-    #
-    # test_features = torch.tensor(X_test, dtype=torch.float32).to(device)
-    # test_labels = torch.tensor(y_test, dtype=torch.long).to(device)
+    y_test: np.ndarray,
+    batch_size: int = 32
+) -> tuple[DataLoader, DataLoader, DataLoader]:
 
     training_features = torch.tensor(X_train, dtype=torch.float32)
     training_labels = torch.tensor(y_train, dtype=torch.long)
@@ -55,27 +28,38 @@ def run_binary_logistic_regression(
     test_features = torch.tensor(X_test, dtype=torch.float32)
     test_labels = torch.tensor(y_test, dtype=torch.long)
 
-    # -------------------------------------------------------------
-    # Create TensorDatasets
-    # -------------------------------------------------------------
-    training_dataset: TensorDataset = TensorDataset(training_features, training_labels)
-    validation_dataset: TensorDataset = TensorDataset(validation_features, validation_labels)
-    test_dataset: TensorDataset = TensorDataset(test_features, test_labels)
+    training_dataset = TensorDataset(training_features, training_labels)
+    validation_dataset = TensorDataset(validation_features, validation_labels)
+    test_dataset = TensorDataset(test_features, test_labels)
 
-    # -------------------------------------------------------------
-    # Create DataLoaders
-    # -------------------------------------------------------------
-    batch_size: int = 32
+    training_loader = DataLoader(training_dataset, batch_size=batch_size, shuffle=True)
+    validation_loader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)
+    test_loader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
 
-    training_loader: DataLoader = DataLoader(training_dataset, batch_size=batch_size, shuffle=True)
-    validation_loader: DataLoader = DataLoader(validation_dataset, batch_size=batch_size, shuffle=False)
-    test_loader: DataLoader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)
+    return training_loader, validation_loader, test_loader
 
-    # -------------------------------------------------------------
-    # Train three models with different learning rates
-    # -------------------------------------------------------------
-    learning_rates = [0.1, 0.01, 0.001]
-    number_of_epochs = 10
+def run_logistic_regression_experiment(
+    X_train: np.ndarray,
+    y_train: np.ndarray,
+    X_validation: np.ndarray,
+    y_validation: np.ndarray,
+    X_test: np.ndarray,
+    y_test: np.ndarray,
+    output_dim: int,
+    learning_rates: list[float],
+    number_of_epochs: int,
+    batch_size: int = 32,
+    scheduler_factory: Optional[Callable[[torch.optim.Optimizer], LRScheduler]] = None
+) -> list[dict]:
+
+    # Build dataloaders
+    training_loader, validation_loader, test_loader = build_dataloaders(
+        X_train, y_train,
+        X_validation, y_validation,
+        X_test, y_test,
+        batch_size
+    )
+
     results = []
 
     for lr in learning_rates:
@@ -83,49 +67,104 @@ def run_binary_logistic_regression(
         print(f"Training logistic regression with learning rate = {lr}")
         print("=" * 60)
 
-        model = Logistic_Regression(input_dim=2, output_dim=2)
+        model = Logistic_Regression(input_dim=X_train.shape[1], output_dim=output_dim)
 
+        if scheduler_factory is not None:
+            # Temporarily build an optimizer just to pass into scheduler_factory
+            optimizer = torch.optim.SGD(model.parameters(), lr=lr)
+            scheduler = scheduler_factory(optimizer)
+        else:
+            scheduler = None
 
         result = train_single_model(
-            model=model,
-            training_loader=training_loader,
-            validation_loader=validation_loader,
-            test_loader=test_loader,
+            model,
+            training_loader,
+            validation_loader,
+            test_loader,
             learning_rate=lr,
-            number_of_epochs=number_of_epochs
+            number_of_epochs=number_of_epochs,
+            scheduler=scheduler
         )
 
         results.append(result)
+    return results
 
-    # -------------------------------------------------------------
-    # Select best model based on validation accuracy
-    # -------------------------------------------------------------
-    best_result = max(
-        results,
-        key=lambda r: max(r["validation_accuracies"])
+
+
+
+def run_binary_logistic_regression(
+    X_train: np.ndarray,
+    y_train: np.ndarray,
+    X_validation: np.ndarray,
+    y_validation: np.ndarray,
+    X_test: np.ndarray,
+    y_test: np.ndarray
+    ) -> dict:
+
+    results = run_logistic_regression_experiment(
+        X_train, y_train,
+        X_validation, y_validation,
+        X_test, y_test,
+        output_dim=2,
+        learning_rates=[0.1, 0.01, 0.001],
+        number_of_epochs=10,
+        batch_size=32,
+        scheduler_factory=None
     )
 
-    best_lr = best_result["learning_rate"]
-    best_val = max(best_result["validation_accuracies"])
-    best_test = max(best_result["test_accuracies"])
-
+    best_result = max(results, key=lambda r: max(r["validation_accuracies"]))
+    # ---- print summary ----
     print("\nBest Model Summary:")
-    print(f"  Learning rate: {best_lr}")
-    print(f"  Best validation accuracy: {best_val:.4f}")
-    print(f"  Corresponding test accuracy: {best_test:.4f}")
+    print(f"  Learning rate: {best_result['learning_rate']}")
+    print(f"  Best validation accuracy: {max(best_result['validation_accuracies']):.4f}")
+    print(f"  Corresponding test accuracy: {max(best_result['test_accuracies']):.4f}")
     print("-" * 60)
 
-    # After selecting best_result
-
-    # ---------------------------------------
-    # Visualization 1: Decision boundaries
-    # ---------------------------------------
+    # ---- restore plotting behavior ----
     visualize_best_model_predictions(best_result, X_test, y_test)
+    plot_full_training_curves(best_result)
 
-    # ---------------------------------------
-    # Visualization 2: Loss curves
-    # ---------------------------------------
-    plot_loss_curves(best_result)
+    return best_result
+
+
+
+
+def plot_full_training_curves(result: dict) -> None:
+    epochs = range(1, len(result["training_losses"]) + 1)
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(epochs, result["training_losses"], label="Training Loss")
+    plt.plot(epochs, result["validation_losses"], label="Validation Loss")
+    plt.plot(epochs, result["test_losses"], label="Test Loss")
+    plt.xlabel("Epoch")
+    plt.ylabel("Loss")
+    plt.title("Loss Curves")
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+    plt.figure(figsize=(8, 5))
+    plt.plot(epochs, result["training_accuracies"], label="Training Accuracy")
+    plt.plot(epochs, result["validation_accuracies"], label="Validation Accuracy")
+    plt.plot(epochs, result["test_accuracies"], label="Test Accuracy")
+    plt.xlabel("Epoch")
+    plt.ylabel("Accuracy")
+    plt.title("Accuracy Curves")
+    plt.grid(True)
+    plt.legend()
+    plt.show()
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 def compute_accuracy(model: nn.Module, data_loader: DataLoader) -> float:
@@ -184,7 +223,8 @@ def train_single_model(
     validation_loader: DataLoader,
     test_loader: DataLoader,
     learning_rate: float,
-    number_of_epochs: int
+    number_of_epochs: int,
+    scheduler: Optional[LRScheduler] = None
 ) -> dict:
     """
     Trains a logistic regression model using SGD,
@@ -211,6 +251,8 @@ def train_single_model(
             optimizer=optimizer,
             loss_function=loss_function
         )
+        if scheduler is not None:
+            scheduler.step()
 
         # Evaluate all data splits
         metrics = evaluate_all_datasets(
@@ -286,7 +328,7 @@ def train_one_epoch(
     training_loader: DataLoader,
     optimizer: torch.optim.Optimizer,
     loss_function: nn.Module
-) -> float:
+) -> None:
     """
     Runs one epoch of SGD over the training set.
     Returns the average loss over this epoch.
@@ -312,7 +354,7 @@ def train_one_epoch(
         total_loss += loss.item() * batch_size
         total_samples += batch_size
 
-    return total_loss / total_samples
+
 
 def print_epoch_metrics(
     epoch: int,
