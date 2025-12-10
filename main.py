@@ -3,12 +3,13 @@ import torch
 
 
 import numpy as np
+
+from decisionTree import decision_trees_stuff
 from helpers import read_data_demo
 from ridge_regression import run_ridge_regression
-from manual_gradient_descent import gradient_descent
-from logistic_regression import run_binary_logistic_regression
-
-
+from gradient_descent import gradient_descent
+from logistic_regression import run_binary_logistic_regression, run_multiclass_logistic_regression, \
+    run_ridge_logistic_regression
 
 if __name__ == "__main__":
 
@@ -59,13 +60,13 @@ if __name__ == "__main__":
     #     Ridge regression will reshape the data internally.
     #     main.py should NOT worry about shapes or transposes.
     # -------------------------------------------------------------
-    # run_ridge_regression(
-    #     X_train, y_train,
-    #     X_validation,   y_validation,
-    #     X_test,  y_test
-    # )
+    run_ridge_regression(
+        X_train, y_train,
+        X_validation,   y_validation,
+        X_test,  y_test
+    )
 
-    #gradient_descent(1000, 0.1)
+    gradient_descent(1000, 0.1)
 
     # -------------------------------------------------------------
     # Run Part 6.3 (Binary Logistic Regression)
@@ -75,6 +76,27 @@ if __name__ == "__main__":
         X_validation, y_validation,
         X_test, y_test
     )
+
+    # -------------------------------------------------------------
+    # Run Part 6.4 (Multiclass Logistic Regression)
+    # -------------------------------------------------------------
+    run_multiclass_logistic_regression(
+        X_train_multiclass, y_train_multiclass,
+        X_validation_multiclass, y_validation_multiclass,
+        X_test_multiclass, y_test_multiclass
+    )
+
+    run_ridge_logistic_regression(X_train_multiclass, y_train_multiclass,
+        X_validation_multiclass, y_validation_multiclass,
+        X_test_multiclass, y_test_multiclass)
+
+    decision_trees_stuff(
+        X_train, y_train,
+        X_validation, y_validation,
+        X_test, y_test
+    )
+
+
 
 
 
